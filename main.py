@@ -2,6 +2,7 @@ import speech_recognition as sr
 import pyttsx3
 import webbrowser
 from music_player import play_music
+from news import get_news
 
 # recognizer = sr.Recognizer()
 
@@ -58,6 +59,11 @@ def processed_command(command):
     if "play random music" in command or "play music" in command:
         speak("Playing music")
         play_music()
+        return
+
+    # News commands
+    if "read news" in command or "latest news" in command:
+        get_news(speak)
         return
 
     speak("Sorry, command not recognized")
