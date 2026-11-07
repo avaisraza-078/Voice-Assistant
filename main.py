@@ -1,6 +1,7 @@
 import speech_recognition as sr
 import pyttsx3
 import webbrowser
+from music_player import play_music
 
 # recognizer = sr.Recognizer()
 
@@ -46,11 +47,18 @@ def processed_command(command):
         "open codepen": "https://codepen.io"
     }
 
+    #Website commands
     for key, url in websites.items():
         if key in command:
             speak("Opening " + key.replace("open ", ""))
             webbrowser.open(url)
             return
+
+    # Music commands
+    if "play random music" in command or "play music" in command:
+        speak("Playing music")
+        play_music()
+        return
 
     speak("Sorry, command not recognized")
 
