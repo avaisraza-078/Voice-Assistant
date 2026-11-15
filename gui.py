@@ -4,6 +4,7 @@ import threading
 import queue
 import time
 import math
+import datetime
 import subprocess
 
 # Auto-configure TCL/TK library path on Windows if needed
@@ -16,6 +17,7 @@ if os.path.isdir(tk_dir):
     os.environ["TK_LIBRARY"] = tk_dir
 
 import tkinter as tk
+from tkinter import scrolledtext
 import speech_recognition as sr
 
 try:
@@ -27,9 +29,9 @@ except ImportError:
 import main
 import tts
 
-# Ensure all speech is completely muted ("Remove all speaks")
-tts.MUTED = True
-main.ANNOUNCE_ACTIONS = False
+# Speech enabled: Assistant speaks aloud ("Opening Google", "Opening YouTube", etc.)
+tts.MUTED = False
+main.ANNOUNCE_ACTIONS = True
 
 BG_DIR = os.path.join(os.path.dirname(__file__), "Background image")
 BG_FITTED = os.path.join(BG_DIR, "Background_fitted.png")
@@ -149,17 +151,19 @@ class AnimatedMicOrb(tk.Canvas):
         self.after(25, self._animate)
 
 
-class MinimalVoiceAssistantGUI:
+class VoiceGlobeGUI:
     """
-    Clean, minimal interface featuring only the background image,
-    the animated glowing globe, and the speak bubble button.
-    All speech is completely silent ("Remove all speaks").
+    Clean interface featuring:
+    - Full background image
+    - Speak Voice Globe in the center with small speaking/processing glow
+    - Right side bottom panel showing all words heard and executed
+    - 100% silent execution ("Remove all speaks")
     """
     def __init__(self, root):
         self.root = root
-        self.root.title("Windows Voice Assistant - Globe")
-        self.root.geometry("560x760")
-        self.root.resizable(False, False)
+        self.root.title("Windows Voice Assistant - Speak Voice Globe")
+        self.root.geometry("780x640")
+        self.root.minsize(680, 560)
         self.root.configure(bg="#02030a")
 
         self.event_queue = queue.Queue()
@@ -180,7 +184,7 @@ class MinimalVoiceAssistantGUI:
         if bg_path and os.path.exists(bg_path):
             try:
                 if HAS_PIL:
-                    pil_img = Image.open(bg_path).resize((560, 760), Image.Resampling.LANCZOS)
+                    pil_img = Image.open(bg_path).resize((780, 640), Image.Resampling.LANCZOS)
                     self.bg_photo = ImageTk.PhotoImage(pil_img)
                 else:
                     self.bg_photo = tk.PhotoImage(file=bg_path)
@@ -189,46 +193,92 @@ class MinimalVoiceAssistantGUI:
 
     def _build_ui(self):
         # 1. Base Canvas with Background Image filling entire window
-        self.canvas = tk.Canvas(self.root, width=560, height=760, bg="#02030a", highlightthickness=0)
+        self.canvas = tk.Canvas(self.root, width=780, height=640, bg="#02030a", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
         if self.bg_photo:
             self.canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
 
-        # 2. Centered Animated Voice Orb
+        # 2. Centered Speak Voice Globe
         self.orb = AnimatedMicOrb(self.canvas, on_click_callback=self._on_orb_clicked, size=180)
-        self.canvas.create_window(280, 360, window=self.orb)
+        self.canvas.create_window(310, 270, window=self.orb)
 
         # 3. Speak Bubble Button
         self.bubble_btn = tk.Button(
             self.canvas,
             text="💬 Speak / Listen",
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             bg="#132a54",
             fg="#e0edff",
             activebackground="#1d4284",
             activeforeground="#ffffff",
             relief=tk.FLAT,
             bd=0,
-            padx=24,
-            pady=10,
+            padx=22,
+            pady=8,
             cursor="hand2",
             command=self._on_orb_clicked
         )
-        self.canvas.create_window(280, 500, window=self.bubble_btn)
+        self.canvas.create_window(310, 400, window=self.bubble_btn)
 
-        # 4. Clean Floating Status Badge
+        # 4. Status pill
         self.status_label = tk.Label(
             self.canvas,
             text="Ready — Click to speak or say 'Hey Windows'",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 9),
             fg="#9bb5dc",
             bg="#0b172d",
-            padx=16,
-            pady=6,
+            padx=14,
+            pady=4,
             relief=tk.FLAT
         )
-        self.canvas.create_window(280, 555, window=self.status_label)
+        self.canvas.create_window(310, 450, window=self.status_label)
+
+        # 5. Right Side Bottom Panel: All Words That Take
+        transcript_frame = tk.Frame(self.canvas, bg="#081022", bd=1, relief=tk.SOLID, highlightbackground="#244070", highlightthickness=1)
+        self.canvas.create_window(630, 490, window=transcript_frame, width=270, height=260)
+
+        # Header of right-side panel
+        header = tk.Frame(transcript_frame, bg="#0e1f3d", pady=4)
+        header.pack(fill=tk.X)
+
+        title = tk.Label(header, text="🟢 WORDS HEARD", font=("Segoe UI", 9, "bold"), fg="#b0c8ec", bg="#0e1f3d")
+        title.pack(side=tk.LEFT, padx=8)
+
+        clear_btn = tk.Button(
+            header, text="Clear", font=("Segoe UI", 8), fg="#6c8db9", bg="#0e1f3d",
+            relief=tk.FLAT, bd=0, cursor="hand2", command=self._clear_transcript
+        )
+        clear_btn.pack(side=tk.RIGHT, padx=6)
+
+        self.words_feed = scrolledtext.ScrolledText(
+            transcript_frame, wrap=tk.WORD, bg="#081022", fg="#dce6ff",
+            font=("Segoe UI", 9), relief=tk.FLAT, padx=8, pady=6, state=tk.DISABLED
+        )
+        self.words_feed.pack(fill=tk.BOTH, expand=True)
+
+        self.words_feed.tag_configure("time", foreground="#5c7ba6", font=("Segoe UI", 8))
+        self.words_feed.tag_configure("cmd", foreground="#00f59b", font=("Segoe UI", 9, "bold"))
+        self.words_feed.tag_configure("text", foreground="#f0f6fc", font=("Segoe UI", 9))
+
+    def _clear_transcript(self):
+        self.words_feed.configure(state=tk.NORMAL)
+        self.words_feed.delete("1.0", tk.END)
+        self.words_feed.configure(state=tk.DISABLED)
+
+    def _add_word_entry(self, text, is_command=False, response_msg=""):
+        now_str = datetime.datetime.now().strftime("%I:%M:%S %p")
+        self.words_feed.configure(state=tk.NORMAL)
+        self.words_feed.insert(tk.END, f"[{now_str}]\n", "time")
+        if is_command:
+            self.words_feed.insert(tk.END, f"⚡ {text}\n", "cmd")
+            if response_msg:
+                self.words_feed.insert(tk.END, f"🔊 {response_msg}\n", "cmd")
+            self.words_feed.insert(tk.END, "\n")
+        else:
+            self.words_feed.insert(tk.END, f"\"{text}\"\n\n", "text")
+        self.words_feed.see(tk.END)
+        self.words_feed.configure(state=tk.DISABLED)
 
     def _on_orb_clicked(self):
         self.control_flags["manual_listen"] = True
@@ -255,6 +305,9 @@ class MinimalVoiceAssistantGUI:
                 if ev_type == "status":
                     _, state, text = item
                     self._set_state(state, text)
+                elif ev_type == "word":
+                    _, word_text, is_cmd, resp_msg = item
+                    self._add_word_entry(word_text, is_cmd, resp_msg)
                 self.event_queue.task_done()
         except queue.Empty:
             pass
@@ -288,11 +341,12 @@ class MinimalVoiceAssistantGUI:
                             audio = r.listen(source, timeout=6, phrase_time_limit=5)
                             cmd_text = r.recognize_google(audio).strip()
                             self.event_queue.put(("status", "processing", f"Executing: {cmd_text}"))
-                            main.processed_command(cmd_text)
-                        except Exception as e:
-                            self.event_queue.put(("status", "idle", f"Could not understand audio"))
+                            is_ok, spoken_msg = main.processed_command(cmd_text)
+                            self.event_queue.put(("word", cmd_text, True, spoken_msg))
+                        except Exception:
+                            self.event_queue.put(("status", "idle", "Could not understand audio"))
                         finally:
-                            time.sleep(1.5)
+                            time.sleep(1.2)
                             self.event_queue.put(("status", "idle", "Ready — Click to speak or say 'Hey Windows'"))
                         continue
 
@@ -300,19 +354,24 @@ class MinimalVoiceAssistantGUI:
                     try:
                         audio = r.listen(source, timeout=None, phrase_time_limit=5)
                         text = r.recognize_google(audio).strip()
-                        is_wake, command = main.extract_wake_word_and_command(text, main.WAKE_WORDS)
-                        if is_wake:
-                            if command:
+                        if text:
+                            is_wake, command = main.extract_wake_word_and_command(text, main.WAKE_WORDS)
+                            if is_wake and command:
                                 self.event_queue.put(("status", "processing", f"Executing: {command}"))
-                                main.processed_command(command)
-                                time.sleep(1.5)
-                            else:
+                                is_ok, spoken_msg = main.processed_command(command)
+                                self.event_queue.put(("word", command, True, spoken_msg))
+                                time.sleep(1.2)
+                            elif is_wake:
+                                self.event_queue.put(("word", text, False, ""))
                                 self.event_queue.put(("status", "listening", "Listening for command..."))
                                 cmd_audio = r.listen(source, timeout=5, phrase_time_limit=5)
                                 cmd_text = r.recognize_google(cmd_audio).strip()
                                 self.event_queue.put(("status", "processing", f"Executing: {cmd_text}"))
-                                main.processed_command(cmd_text)
-                                time.sleep(1.5)
+                                is_ok, spoken_msg = main.processed_command(cmd_text)
+                                self.event_queue.put(("word", cmd_text, True, spoken_msg))
+                                time.sleep(1.2)
+                            else:
+                                self.event_queue.put(("word", text, False, ""))
                     except Exception:
                         pass
                     finally:
@@ -324,7 +383,7 @@ class MinimalVoiceAssistantGUI:
 
 def run_gui():
     root = tk.Tk()
-    app = MinimalVoiceAssistantGUI(root)
+    app = VoiceGlobeGUI(root)
     root.mainloop()
 
 if __name__ == "__main__":

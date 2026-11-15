@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Windows Voice Assistant - Orb</title>
+  <title>Windows Voice Assistant - Speak Voice Globe</title>
   <style>
     * {
       box-sizing: border-box;
@@ -22,12 +22,12 @@
       overflow: hidden;
       position: relative;
     }
-    /* Subtle overlay to enhance orb glow */
+    /* Ambient vignette backdrop */
     body::before {
       content: "";
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(4, 10, 24, 0.4) 0%, rgba(2, 3, 10, 0.85) 100%);
+      background: radial-gradient(circle at center, rgba(4, 10, 24, 0.35) 0%, rgba(2, 3, 10, 0.85) 100%);
       pointer-events: none;
       z-index: 1;
     }
@@ -40,85 +40,238 @@
       justify-content: center;
       width: 100%;
     }
+    /* Central Speak Voice Globe Canvas */
     canvas {
-      width: min(85vw, 560px);
-      height: min(85vw, 560px);
+      width: min(80vw, 500px);
+      height: min(80vw, 500px);
       cursor: pointer;
-      filter: drop-shadow(0 0 40px rgba(34, 106, 255, 0.35));
-      transition: transform 0.2s ease;
+      filter: drop-shadow(0 0 45px rgba(34, 106, 255, 0.4));
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     canvas:hover {
-      transform: scale(1.02);
+      transform: scale(1.03);
     }
-    /* Speak Bubble Floating Button */
+    canvas.processing {
+      filter: drop-shadow(0 0 55px rgba(157, 78, 221, 0.65));
+    }
+    /* Central Floating Speak Bubble Button */
     .bubble-btn {
-      margin-top: 10px;
-      background: rgba(15, 35, 75, 0.75);
+      margin-top: 8px;
+      background: rgba(15, 35, 75, 0.8);
       color: #e0edff;
-      border: 1px solid rgba(80, 125, 255, 0.5);
+      border: 1px solid rgba(80, 125, 255, 0.55);
       border-radius: 50px;
       padding: 12px 28px;
       font-size: 15px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 15px rgba(80, 125, 255, 0.2);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5), 0 0 20px rgba(80, 125, 255, 0.25);
       transition: all 0.25s ease;
     }
     .bubble-btn:hover {
-      background: rgba(23, 62, 149, 0.9);
+      background: rgba(25, 68, 160, 0.95);
       border-color: #507dff;
-      box-shadow: 0 0 25px rgba(52, 120, 255, 0.6);
+      box-shadow: 0 0 30px rgba(52, 120, 255, 0.7);
       transform: translateY(-2px);
     }
     .bubble-btn.active {
-      background: rgba(0, 210, 255, 0.25);
-      border-color: #00d2ff;
-      box-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+      background: rgba(0, 245, 155, 0.2);
+      border-color: #00f59b;
+      color: #00f59b;
+      box-shadow: 0 0 30px rgba(0, 245, 155, 0.45);
+    }
+    .bubble-btn.processing {
+      background: rgba(157, 78, 221, 0.25);
+      border-color: #9d4edd;
+      color: #d8b4fe;
+      box-shadow: 0 0 30px rgba(157, 78, 221, 0.55);
     }
     .bubble-icon {
       width: 20px;
       height: 20px;
       fill: currentColor;
     }
-    /* Floating Notification Badge */
+    /* Minimal Status Pill */
     #status {
-      margin-top: 14px;
-      font-size: 14px;
-      color: #9bb5dc;
-      padding: 6px 16px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #8daed8;
+      padding: 5px 16px;
       border-radius: 20px;
-      background: rgba(10, 20, 40, 0.6);
-      backdrop-filter: blur(8px);
+      background: rgba(8, 18, 38, 0.65);
+      backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      max-width: 480px;
+      max-width: 440px;
       text-align: center;
       transition: all 0.3s ease;
     }
     #status.success {
       color: #00f59b;
-      border-color: rgba(0, 245, 155, 0.4);
-      box-shadow: 0 0 15px rgba(0, 245, 155, 0.2);
+      border-color: rgba(0, 245, 155, 0.45);
+      box-shadow: 0 0 18px rgba(0, 245, 155, 0.25);
+    }
+
+    /* RIGHT SIDE BOTTOM WIDGET: All Words Taken / Live Transcript */
+    .transcript-panel {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 350px;
+      max-height: 290px;
+      background: rgba(8, 16, 34, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(52, 120, 255, 0.35);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(34, 106, 255, 0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+    .transcript-header {
+      padding: 10px 14px;
+      background: rgba(14, 28, 58, 0.7);
+      border-bottom: 1px solid rgba(52, 120, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: #b0c8ec;
+      letter-spacing: 0.5px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00f59b;
+      box-shadow: 0 0 8px #00f59b;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .clear-btn {
+      background: transparent;
+      border: none;
+      color: #6c8db9;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+    .clear-btn:hover {
+      color: #ff6b6b;
+    }
+    .transcript-body {
+      padding: 10px 14px;
+      overflow-y: auto;
+      max-height: 230px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    /* Scrollbar */
+    .transcript-body::-webkit-scrollbar {
+      width: 5px;
+    }
+    .transcript-body::-webkit-scrollbar-thumb {
+      background: rgba(80, 125, 255, 0.3);
+      border-radius: 4px;
+    }
+    .word-item {
+      padding: 6px 10px;
+      background: rgba(18, 36, 72, 0.55);
+      border-radius: 8px;
+      border-left: 3px solid #3478ff;
+      animation: fadeIn 0.25s ease-out;
+    }
+    .word-item.executed {
+      border-left-color: #00f59b;
+      background: rgba(0, 245, 155, 0.08);
+    }
+    .word-time {
+      font-size: 10px;
+      color: #6c8db9;
+      margin-bottom: 2px;
+    }
+    .word-text {
+      color: #e6f0ff;
+      word-break: break-word;
+    }
+    .word-tag {
+      display: inline-block;
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #00f59b;
+    }
+    .interim-item {
+      font-style: italic;
+      color: #00d2ff;
+      padding: 4px 10px;
+      background: rgba(0, 210, 255, 0.08);
+      border-radius: 8px;
+      border-left: 3px dashed #00d2ff;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .empty-note {
+      color: #5c7ba6;
+      font-size: 12px;
+      font-style: italic;
+      text-align: center;
+      padding: 20px 0;
     }
   </style>
 </head>
 <body>
+  <!-- Main Centered Speak Voice Globe -->
   <main>
-    <canvas id="orb" aria-label="Animated voice orb reacting to microphone"></canvas>
+    <canvas id="orb" aria-label="Animated speak voice globe"></canvas>
     <div>
       <button id="toggle" class="bubble-btn" title="Click to start/stop microphone">
         <svg class="bubble-icon" viewBox="0 0 24 24">
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
-        <span id="btn-text">Start microphone</span>
+        <span id="btn-text">Start Microphone</span>
       </button>
     </div>
-    <p id="status" role="status">Click the speak bubble or orb to begin.</p>
+    <p id="status" role="status">Click the globe or button to speak.</p>
   </main>
+
+  <!-- Right Side Bottom: All Words That Take Panel -->
+  <aside class="transcript-panel" aria-label="Spoken words history">
+    <div class="transcript-header">
+      <div class="header-left">
+        <span class="live-dot" id="live-dot"></span>
+        <span>WORDS HEARD</span>
+      </div>
+      <button class="clear-btn" id="clear-btn" title="Clear word history">Clear</button>
+    </div>
+    <div class="transcript-body" id="transcript-body">
+      <div class="empty-note" id="empty-note">Spoken words will appear here...</div>
+    </div>
+  </aside>
 
   <script>
     const c = document.querySelector('#orb');
@@ -126,14 +279,21 @@
     const button = document.querySelector('#toggle');
     const btnText = document.querySelector('#btn-text');
     const status = document.querySelector('#status');
+    const transcriptBody = document.querySelector('#transcript-body');
+    const emptyNote = document.querySelector('#empty-note');
+    const clearBtn = document.querySelector('#clear-btn');
+    const liveDot = document.querySelector('#live-dot');
 
     c.width = c.height = 700;
     let ctx, stream, analyser, data, level = 0, active = false;
+    let isProcessing = false;
     let recognition = null;
 
-    // Toggle Microphone & Speech Recognition
     button.onclick = toggleMicrophone;
     c.onclick = toggleMicrophone;
+    clearBtn.onclick = () => {
+      transcriptBody.innerHTML = '<div class="empty-note" id="empty-note">Spoken words will appear here...</div>';
+    };
 
     async function toggleMicrophone() {
       button.disabled = true;
@@ -166,8 +326,10 @@
 
       button.classList.add('active');
       btnText.textContent = 'Listening...';
-      status.textContent = 'Listening — speak a command (e.g. "open youtube", "what time is it")';
+      status.textContent = 'Listening — speak a command (e.g. "open youtube", "open google")';
       status.classList.remove('success');
+      liveDot.style.background = '#00f59b';
+      liveDot.style.boxShadow = '0 0 8px #00f59b';
 
       initWebSpeech();
     }
@@ -181,27 +343,52 @@
       }
       analyser = null;
       active = false;
-      button.classList.remove('active');
-      btnText.textContent = 'Start microphone';
+      isProcessing = false;
+      c.classList.remove('processing');
+      button.classList.remove('active', 'processing');
+      btnText.textContent = 'Start Microphone';
       status.textContent = 'Microphone stopped. Click to resume.';
       status.classList.remove('success');
+      liveDot.style.background = '#6c8db9';
+      liveDot.style.boxShadow = 'none';
+
+      const existingInterim = document.getElementById('interim-box');
+      if (existingInterim) existingInterim.remove();
     }
 
-    // Web Speech API for instant in-browser transcription
+    // Web Speech API with live interim results (words shown in real time)
     function initWebSpeech() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) return;
 
       recognition = new SpeechRecognition();
       recognition.continuous = true;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
-        const last = event.results.length - 1;
-        const phrase = event.results[last][0].transcript.trim();
-        console.log("Heard phrase:", phrase);
-        handleRecognizedCommand(phrase);
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        // Live interim words in the bottom right corner
+        if (interimTranscript) {
+          showInterimWord(interimTranscript);
+        }
+
+        // Final words confirmed
+        if (finalTranscript.trim()) {
+          const phrase = finalTranscript.trim();
+          addWordToPanel(phrase, true);
+          handleRecognizedCommand(phrase);
+        }
       };
 
       recognition.onerror = (e) => {
@@ -217,13 +404,81 @@
       try { recognition.start(); } catch (_) {}
     }
 
+    // Poll server for words detected by backend
+    let seenWordKeys = new Set();
+    async function syncServerWords() {
+      try {
+        const res = await fetch('/api/words');
+        const words = await res.json();
+        if (Array.isArray(words)) {
+          words.forEach(w => {
+            const key = `${w.time}_${w.text}`;
+            if (!seenWordKeys.has(key)) {
+              seenWordKeys.add(key);
+              addWordToPanel(w.text, w.is_command, w.time, w.response);
+            }
+          });
+        }
+      } catch (_) {}
+    }
+    setInterval(syncServerWords, 1000);
+
+    // Append recognized word to the bottom-right panel
+    function addWordToPanel(text, isCommand = false, explicitTime = null, responseMsg = null) {
+      const note = document.getElementById('empty-note');
+      if (note) note.remove();
+
+      const interim = document.getElementById('interim-box');
+      if (interim) interim.remove();
+
+      const item = document.createElement('div');
+      item.className = 'word-item' + (isCommand ? ' executed' : '');
+
+      const now = new Date();
+      const timeStr = explicitTime || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      item.innerHTML = `
+        <div class="word-time">${timeStr}</div>
+        <div class="word-text">"${escapeHtml(text)}"</div>
+        ${isCommand ? '<div class="word-tag">⚡ Executed</div>' : ''}
+        ${responseMsg ? `<div class="word-response" style="color: #00d2ff; font-weight: 600; margin-top: 3px; font-size: 11px;">🔊 ${escapeHtml(responseMsg)}</div>` : ''}
+      `;
+
+      transcriptBody.appendChild(item);
+      transcriptBody.scrollTop = transcriptBody.scrollHeight;
+    }
+
+    function showInterimWord(text) {
+      const note = document.getElementById('empty-note');
+      if (note) note.remove();
+
+      let item = document.getElementById('interim-box');
+      if (!item) {
+        item = document.createElement('div');
+        item.id = 'interim-box';
+        item.className = 'interim-item';
+        transcriptBody.appendChild(item);
+      }
+      item.textContent = `... ${text}`;
+      transcriptBody.scrollTop = transcriptBody.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     // Send recognized command to local Python backend silently
     async function handleRecognizedCommand(command) {
       if (!command) return;
 
       let cmd = command.toLowerCase().trim();
-      // Remove wake words if spoken
       cmd = cmd.replace(/^(hey windows|hello windows|ok windows|windows)\s*/i, '').trim() || cmd;
+
+      // Small speaking glow for the process of
+      isProcessing = true;
+      c.classList.add('processing');
+      button.classList.add('processing');
+      btnText.textContent = 'Processing...';
 
       status.textContent = `⚡ Executing: "${cmd}"`;
       status.classList.add('success');
@@ -231,21 +486,28 @@
       try {
         const res = await fetch(`/api/command?cmd=${encodeURIComponent(cmd)}`);
         const data = await res.json();
-        console.log("Command response:", data);
+        console.log("Command executed:", data);
+        if (data && data.speech) {
+          status.textContent = `🔊 ${data.speech}`;
+          addWordToPanel(cmd, true, null, data.speech);
+        }
       } catch (err) {
         console.error("API error:", err);
       }
 
-      // Reset status pill after 3 seconds
       setTimeout(() => {
+        isProcessing = false;
+        c.classList.remove('processing');
+        button.classList.remove('processing');
         if (active) {
+          btnText.textContent = 'Listening...';
           status.textContent = 'Listening — speak a command...';
           status.classList.remove('success');
         }
-      }, 3000);
+      }, 1500);
     }
 
-    // Orb Animation Loop (User's Exact Canvas Algorithm)
+    // Speak Voice Globe Animation Loop
     function draw(ms) {
       requestAnimationFrame(draw);
       let target = 0;
@@ -255,6 +517,12 @@
         for (let v of data) sum += ((v - 128) / 128) ** 2;
         target = Math.min(1, Math.sqrt(sum / data.length) * 5);
       }
+
+      // Small speaking glow during processing state
+      if (isProcessing) {
+        target = Math.max(target, 0.4 + Math.sin(ms * 0.008) * 0.25);
+      }
+
       level += (target - level) * 0.16;
       let t = ms * 0.001;
 
@@ -262,29 +530,35 @@
       g.save();
       g.translate(350, 350);
 
-      // Outer Glow Circle
+      // Outer glow circle
       let r = 210 + level * 28;
-      g.shadowColor = '#226aff';
+      g.shadowColor = isProcessing ? '#9d4edd' : '#226aff';
       g.shadowBlur = 25 + level * 35;
-      g.strokeStyle = '#3478ff';
+      g.strokeStyle = isProcessing ? '#b388ff' : '#3478ff';
       g.lineWidth = 2;
       g.beginPath();
       g.arc(0, 0, r, 0, Math.PI * 2);
       g.stroke();
 
-      // Radial Gradient Halo
+      // Radial halo
       let halo = g.createRadialGradient(0, 0, 10, 0, 0, r);
-      halo.addColorStop(0, '#5225a055');
-      halo.addColorStop(0.75, '#154dbb33');
-      halo.addColorStop(1, '#05071800');
+      if (isProcessing) {
+        halo.addColorStop(0, '#7b2cbf66');
+        halo.addColorStop(0.75, '#3a0ca333');
+        halo.addColorStop(1, '#05071800');
+      } else {
+        halo.addColorStop(0, '#5225a055');
+        halo.addColorStop(0.75, '#154dbb33');
+        halo.addColorStop(1, '#05071800');
+      }
       g.fillStyle = halo;
       g.fill();
 
-      // 6 Rotating Glowing Ribbon Loops with 3D Perspective
+      // 6 Rotating Glowing 3D Ribbon Loops
       g.globalCompositeOperation = 'screen';
       for (let j = 0; j < 6; j++) {
-        let hue = 185 + j * 31;
-        g.strokeStyle = `hsla(${hue}, 100%, 65%, 0.8)`;
+        let hue = isProcessing ? (250 + j * 24) : (185 + j * 31);
+        g.strokeStyle = `hsla(${hue}, 100%, 65%, 0.82)`;
         g.shadowColor = `hsl(${hue}, 100%, 60%)`;
         g.shadowBlur = 18 + level * 25;
         g.lineWidth = 5 + level * 8;

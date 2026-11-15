@@ -6,6 +6,7 @@ import os
 import json
 import threading
 import sys
+import datetime
 import speech_recognition as sr
 
 import main
@@ -16,9 +17,26 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BG_PATH = os.path.join(BASE_DIR, "Background image", "Background.jpg")
 INDEX_PATH = os.path.join(BASE_DIR, "index.html")
 
-# Ensure all speech is muted ("Remove all speaks")
-tts.MUTED = True
-main.ANNOUNCE_ACTIONS = False
+# Assistant speaks words aloud ("Opening Google", "Opening YouTube", etc.)
+tts.MUTED = False
+main.ANNOUNCE_ACTIONS = True
+
+# Shared in-memory list of words/commands for the bottom-right panel
+RECOGNIZED_WORDS = []
+WORDS_LOCK = threading.Lock()
+
+def add_word_event(text: str, is_command: bool = True, response: str = ""):
+    now_str = datetime.datetime.now().strftime("%I:%M:%S %p")
+    with WORDS_LOCK:
+        RECOGNIZED_WORDS.append({
+            "time": now_str,
+            "text": text,
+            "is_command": is_command,
+            "response": response
+        })
+        # Keep latest 50 entries
+        if len(RECOGNIZED_WORDS) > 50:
+            RECOGNIZED_WORDS.pop(0)
 
 class VoiceOrbRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -49,17 +67,17 @@ class VoiceOrbRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 3. API Command Endpoint (Silent execution)
+        # 3. API Command Endpoint (Executes & speaks aloud)
         if parsed.path == "/api/command":
             params = urllib.parse.parse_qs(parsed.query)
             cmd = params.get("cmd", [""])[0]
-            print(f"\n[Web Command Received]: '{cmd}'")
+            print(f"\n[Command Received]: '{cmd}'")
 
             if cmd:
-                # Execute command silently without speaking
                 try:
-                    main.processed_command(cmd)
-                    res = {"status": "ok", "command": cmd}
+                    is_ok, spoken_msg = main.processed_command(cmd)
+                    add_word_event(cmd, is_command=True, response=spoken_msg)
+                    res = {"status": "ok", "command": cmd, "speech": spoken_msg}
                 except Exception as e:
                     res = {"status": "error", "message": str(e)}
             else:
@@ -73,11 +91,21 @@ class VoiceOrbRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(response_bytes)
             return
 
-        # Fallback to default
+        # 4. API Words Endpoint (Syncs words to right-side bottom widget)
+        if parsed.path == "/api/words":
+            with WORDS_LOCK:
+                data = list(RECOGNIZED_WORDS)
+            response_bytes = json.dumps(data).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(response_bytes)
+            return
+
         super().do_GET()
 
     def log_message(self, format, *args):
-        # Keep terminal output clean
         pass
 
 
@@ -98,11 +126,14 @@ def background_mic_listener():
                 try:
                     audio = r.listen(source, timeout=None, phrase_time_limit=5)
                     text = r.recognize_google(audio).strip()
-
-                    is_wake, command = main.extract_wake_word_and_command(text, main.WAKE_WORDS)
-                    if is_wake and command:
-                        print(f"[Mic Heard]: '{command}'")
-                        main.processed_command(command)
+                    if text:
+                        print(f"[Mic Heard]: \"{text}\"")
+                        is_wake, command = main.extract_wake_word_and_command(text, main.WAKE_WORDS)
+                        if is_wake and command:
+                            is_ok, spoken_msg = main.processed_command(command)
+                            add_word_event(command, is_command=True, response=spoken_msg)
+                        else:
+                            add_word_event(text, is_command=False)
                 except Exception:
                     pass
     except Exception as e:
@@ -114,16 +145,13 @@ def run_server():
     with socketserver.TCPServer(("127.0.0.1", PORT), VoiceOrbRequestHandler) as httpd:
         url = f"http://127.0.0.1:{PORT}"
         print("=" * 60)
-        print(f"      WINDOWS VOICE ASSISTANT - ORB FRONTEND")
+        print("      WINDOWS VOICE ASSISTANT - SPEAK VOICE GLOBE")
         print("=" * 60)
-        print(f"[*] Serving Voice Orb at: {url}")
+        print(f"[*] Serving Speak Voice Globe at: {url}")
         print("[*] Silent execution active ('Remove all speaks')")
         print("[*] Opening browser...")
 
-        # Open in default web browser
         webbrowser.open(url)
-
-        # Start background listener in parallel thread
         threading.Thread(target=background_mic_listener, daemon=True).start()
 
         try:

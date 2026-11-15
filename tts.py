@@ -62,8 +62,8 @@ class NativeTTS:
             pass
 
 
-# Global mute flag: Set to True to remove all speech output ("Remove all speaks")
-MUTED = True
+# Set to False so the assistant speaks aloud ("Opening Google", "Opening YouTube", etc.)
+MUTED = False
 
 _tts_instance = None
 
@@ -74,9 +74,8 @@ def get_tts(rate: int = 1) -> NativeTTS:
     return _tts_instance
 
 def speak(text: str, block: bool = True):
-    """Speaks text using native SAPI, or stays completely silent when MUTED=True."""
+    """Speaks text out loud clearly using native Windows SAPI."""
     if MUTED or not text:
-        if text:
-            print(f"[Assistant (Silent)]: {text}")
         return
+    print(f"\n[Assistant Speaking]: {text}")
     get_tts().speak(text, block=block)

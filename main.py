@@ -10,9 +10,8 @@ from tts import speak, get_tts
 from music_player import play_music
 from news import get_news
 
-# Set to False to keep opening websites, apps, search, and music silent and instant.
-# Set to True if you want the assistant to announce "Opening YouTube", "Playing music", etc.
-ANNOUNCE_ACTIONS = False
+# Set to True so the assistant always speaks aloud ("Opening Google", "Opening YouTube", etc.)
+ANNOUNCE_ACTIONS = True
 
 # Pre-indexed websites for instant O(1) lookup
 WEBSITES = {
@@ -95,62 +94,67 @@ def extract_wake_word_and_command(text: str, wake_words: list[str]) -> tuple[boo
 
     return False, ""
 
-def processed_command(command: str) -> bool:
+def processed_command(command: str) -> tuple[bool, str]:
     """
-    Executes recognized commands.
-    Returns False if user requests exit, otherwise True.
+    Executes recognized commands and speaks confirmations aloud.
+    Returns (keep_running, spoken_message).
     """
     global ANNOUNCE_ACTIONS
     cmd = command.lower().strip()
     if not cmd:
-        return True
+        return True, ""
 
     print(f"[Executing Command]: '{cmd}'")
 
     # 1. Exit / Stop Commands
     if cmd in ("exit", "quit", "stop", "goodbye", "bye", "sleep", "shut down"):
-        speak("Goodbye!", block=True)
-        return False
+        msg = "Goodbye!"
+        speak(msg, block=True)
+        return False, msg
 
-    # 2. Toggle Action Announcements (Silent vs Voice mode)
+    # 2. Toggle Action Announcements
     if cmd in ("silent mode", "mute announcements", "disable announcements", "quiet mode"):
         ANNOUNCE_ACTIONS = False
-        speak("Action announcements disabled.", block=True)
-        return True
+        msg = "Action announcements disabled."
+        speak(msg, block=True)
+        return True, msg
 
     if cmd in ("voice mode", "enable announcements", "unmute announcements"):
         ANNOUNCE_ACTIONS = True
-        speak("Action announcements enabled.", block=True)
-        return True
+        msg = "Action announcements enabled."
+        speak(msg, block=True)
+        return True, msg
 
-    # 3. Time & Date Commands (Always spoken)
+    # 3. Time & Date Commands (Always spoken aloud)
     if any(q in cmd for q in ("what time is it", "current time", "tell me the time")) or cmd == "time":
         now_str = datetime.datetime.now().strftime("%I:%M %p")
-        speak(f"The time is {now_str}", block=True)
-        return True
+        msg = f"The time is {now_str}"
+        speak(msg, block=True)
+        return True, msg
 
     if any(q in cmd for q in ("what date is it", "today's date", "what is the date")) or cmd == "date":
         date_str = datetime.datetime.now().strftime("%A, %B %d, %Y")
-        speak(f"Today is {date_str}", block=True)
-        return True
+        msg = f"Today is {date_str}"
+        speak(msg, block=True)
+        return True, msg
 
     # 4. Direct YouTube Search
     if cmd.startswith("search youtube for ") or cmd.startswith("youtube "):
         query = cmd.replace("search youtube for ", "").replace("youtube ", "").strip()
         if query:
-            if ANNOUNCE_ACTIONS:
-                speak(f"Searching YouTube for {query}", block=True)
+            msg = f"Searching YouTube for {query}"
+            speak(msg, block=True)
             webbrowser.open(f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}")
-            return True
+            return True, msg
 
     # 5. Direct Google Search
     if cmd.startswith("search google for ") or cmd.startswith("search for ") or cmd.startswith("google "):
         query = cmd.replace("search google for ", "").replace("search for ", "").replace("google ", "").strip()
         if query:
-            if ANNOUNCE_ACTIONS:
-                speak(f"Searching Google for {query}", block=True)
+            msg = f"Searching Google for {query}"
+            speak(msg, block=True)
             webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}")
-            return True
+            return True, msg
 
     # 6. Open Apps or Websites
     if cmd.startswith("open "):
@@ -158,52 +162,52 @@ def processed_command(command: str) -> bool:
 
         # Check local Windows Apps first
         if target in APPS:
-            if ANNOUNCE_ACTIONS:
-                speak(f"Opening {target}", block=True)
+            msg = f"Opening {target}"
+            speak(msg, block=True)
             os.system(f"start {APPS[target]}")
-            return True
+            return True, msg
 
         # Check pre-indexed websites (O(1) hash lookup)
         if target in WEBSITES:
-            if ANNOUNCE_ACTIONS:
-                speak(f"Opening {target.title()}", block=True)
+            msg = f"Opening {target.title()}"
+            speak(msg, block=True)
             webbrowser.open(WEBSITES[target])
-            return True
+            return True, msg
 
         # Check if user specified a domain (e.g. 'open github.com' or 'open example.org')
         if "." in target and " " not in target:
             url = target if target.startswith("http") else f"https://{target}"
-            if ANNOUNCE_ACTIONS:
-                speak(f"Opening {target}", block=True)
+            msg = f"Opening {target}"
+            speak(msg, block=True)
             webbrowser.open(url)
-            return True
+            return True, msg
 
         # Fallback to direct .com URL
         fallback_url = f"https://www.{target}.com"
-        if ANNOUNCE_ACTIONS:
-            speak(f"Opening {target}", block=True)
+        msg = f"Opening {target}"
+        speak(msg, block=True)
         webbrowser.open(fallback_url)
-        return True
+        return True, msg
 
     # 7. Music Commands
     if "play" in cmd and ("music" in cmd or "song" in cmd or "spotify" in cmd or "naat" in cmd):
         song_query = cmd.replace("play", "").replace("random", "").replace("music", "").replace("song", "").strip()
         track_name = play_music(song_query)
-        if ANNOUNCE_ACTIONS:
-            speak(f"Playing {track_name}", block=True)
-        return True
+        msg = f"Playing {track_name}"
+        speak(msg, block=True)
+        return True, msg
 
     # 8. News Commands (Always spoken)
     if any(k in cmd for k in ("read news", "latest news", "news", "headlines")):
         get_news(speak, count=3)
-        return True
+        return True, "Reading latest news"
 
     # 9. Unhandled queries: Fall back to Google Search
     print(f"[Fallback]: Searching web for '{cmd}'")
-    if ANNOUNCE_ACTIONS:
-        speak(f"Searching for {cmd}", block=True)
+    msg = f"Searching for {cmd}"
+    speak(msg, block=True)
     webbrowser.open(f"https://www.google.com/search?q={urllib.parse.quote_plus(cmd)}")
-    return True
+    return True, msg
 
 
 def run_assistant():
@@ -246,7 +250,7 @@ def run_assistant():
                     if is_wake:
                         # 1-step execution: Wake word + command said together
                         if command:
-                            keep_running = processed_command(command)
+                            keep_running, _ = processed_command(command)
                             if not keep_running:
                                 break
                         else:
@@ -256,7 +260,7 @@ def run_assistant():
                             try:
                                 cmd_audio = r.listen(source, timeout=5, phrase_time_limit=5)
                                 cmd_text = r.recognize_google(cmd_audio).strip()
-                                keep_running = processed_command(cmd_text)
+                                keep_running, _ = processed_command(cmd_text)
                                 if not keep_running:
                                     break
                             except sr.WaitTimeoutError:
