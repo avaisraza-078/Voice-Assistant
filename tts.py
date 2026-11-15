@@ -62,6 +62,9 @@ class NativeTTS:
             pass
 
 
+# Global mute flag: Set to True to remove all speech output ("Remove all speaks")
+MUTED = True
+
 _tts_instance = None
 
 def get_tts(rate: int = 1) -> NativeTTS:
@@ -71,5 +74,9 @@ def get_tts(rate: int = 1) -> NativeTTS:
     return _tts_instance
 
 def speak(text: str, block: bool = True):
-    """Convenience function to speak text using the native SAPI engine."""
+    """Speaks text using native SAPI, or stays completely silent when MUTED=True."""
+    if MUTED or not text:
+        if text:
+            print(f"[Assistant (Silent)]: {text}")
+        return
     get_tts().speak(text, block=block)

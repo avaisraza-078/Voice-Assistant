@@ -280,4 +280,21 @@ def run_assistant():
 
 
 if __name__ == "__main__":
-    run_assistant()
+    if "--cli" in sys.argv:
+        run_assistant()
+    elif "--gui" in sys.argv:
+        try:
+            from gui import run_gui
+            run_gui()
+        except Exception as e:
+            run_assistant()
+    else:
+        try:
+            from server import run_server
+            run_server()
+        except Exception as e:
+            try:
+                from gui import run_gui
+                run_gui()
+            except Exception:
+                run_assistant()
