@@ -1,53 +1,16 @@
 # Ultra-Fast Windows Voice Assistant 🚀
 
-A high-performance, optimized Python voice assistant designed for rapid listening, instant command execution, and non-blocking speech synthesis.
-
-## ⚡ Speed & Latency Optimizations
-
-1. **Instant Silent Action Execution (`ANNOUNCE_ACTIONS = False`)**:
-   - Commands like opening websites, opening apps, searching Google/YouTube, or playing music execute **instantly and quietly** without speaking repetitive announcements (*"Opening YouTube"*, *"Searching for..."*, *"Playing music"*).
-   - Informational commands (*time*, *date*, *news*, and wake prompts) continue to speak aloud clearly.
-   - You can toggle announcements anytime by voice (*"voice mode"* / *"silent mode"*) or by editing `ANNOUNCE_ACTIONS` in `main.py`.
-2. **Persistent Microphone Stream**: The microphone is opened and kept active once on startup rather than being opened, closed, and re-opened for every phrase. This saves ~0.5s–1.0s on every command.
-3. **Instant Acoustic Tuning**:
-   - `pause_threshold = 0.5s` (reduced from 0.8s) – responds 300ms faster when you stop speaking.
-   - `non_speaking_duration = 0.3s` – minimizes silence payloads uploaded to Google STT.
-   - Fixed ambient calibration at startup eliminates dynamic volume jumping.
-4. **Single-Pass Wake-Word Recognition (Listen Fast)**:
-   - Say wake-word + command together in one breath: *"Hey Windows open YouTube"* executes **immediately in 1 step**!
-   - If only the wake-word is said (*"Hey Windows"*), it gives a short confirmation (*"Yes?"*) and listens for the command.
-5. **Native Windows SAPI Speech Engine**:
-   - Uses native Windows SAPI with automatic voice token detection, eliminating COM errors and threading freezes.
+A high-performance Voice Assistant featuring a **Speak Voice Globe** and full voice responses.
 
 ---
 
-## 🎙️ Supported Commands
+## 🔮 Speak Voice Globe Interface
 
-### 🌐 Web & Search
-- `"Hey Windows, open YouTube"` / `"open google"` / `"open github"` / `"open chatgpt"`
-- `"open notion.so"` or any custom domain
-- `"search google for quantum physics"`
-- `"search youtube for lofi hip hop"`
-
-### 💻 Windows Native Apps
-- `"open notepad"`
-- `"open calculator"`
-- `"open terminal"` / `"open cmd"`
-- `"open task manager"`
-- `"open explorer"` / `"open files"`
-- `"open settings"`
-- `"open paint"`
-
-### 🎵 Music & Entertainment
-- `"play music"` (plays random playlist or default Spotify playlist)
-- `"play naat"` (plays specific track/playlist from `music.txt`)
-
-### 📰 News & Utilities
-- `"read news"` / `"latest news"` (fetches top 3 headlines with timeout and clean titles)
-- `"what time is it"` / `"time"`
-- `"what date is it"` / `"date"`
-- `"silent mode"` / `"voice mode"` (toggles action announcements)
-- `"stop"` / `"exit"` / `"quit"` / `"goodbye"`
+* **Central Animated Speak Voice Globe**: 6 rotating 3D ribbon loops reacting to your voice and pulsing with a glowing aura when processing or speaking.
+* **Full-Screen Background**: Custom background wallpaper (`Background image/Background.jpg`).
+* **Spoken Confirmations Enabled**: The assistant speaks responses aloud clearly (e.g., *"Opening Google"*, *"Opening YouTube"*, *"Playing music"*, *"The time is..."*).
+* **Right-Side Bottom Words Panel**: A live HUD in the bottom-right corner displaying all words heard and executed with timestamps.
+* **Speak Bubble Icon**: Floating button to activate or stop the microphone.
 
 ---
 
@@ -57,7 +20,19 @@ A high-performance, optimized Python voice assistant designed for rapid listenin
    ```powershell
    .\.venv\Scripts\activate
    ```
-2. Start the assistant:
+
+2. Run the assistant:
    ```powershell
    python main.py
+   ```
+   *(Automatically opens the Speak Voice Globe in your browser)*
+
+3. Or run the Desktop Window GUI:
+   ```powershell
+   python main.py --gui
+   ```
+
+4. Or run in Terminal mode:
+   ```powershell
+   python main.py --cli
    ```

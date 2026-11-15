@@ -62,6 +62,9 @@ class NativeTTS:
             pass
 
 
+# Set to False so the assistant speaks aloud ("Opening Google", "Opening YouTube", etc.)
+MUTED = False
+
 _tts_instance = None
 
 def get_tts(rate: int = 1) -> NativeTTS:
@@ -71,5 +74,8 @@ def get_tts(rate: int = 1) -> NativeTTS:
     return _tts_instance
 
 def speak(text: str, block: bool = True):
-    """Convenience function to speak text using the native SAPI engine."""
+    """Speaks text out loud clearly using native Windows SAPI."""
+    if MUTED or not text:
+        return
+    print(f"\n[Assistant Speaking]: {text}")
     get_tts().speak(text, block=block)
