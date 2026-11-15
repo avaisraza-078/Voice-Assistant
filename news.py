@@ -1,33 +1,55 @@
 import feedparser
 import random
+import re
+import urllib.request
 
-def get_news(speak):
-    speak("Getting the latest news")
+NEWS_URL = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
 
-    news_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
+def clean_headline(title: str) -> str:
+    """Strip publisher suffixes like ' - The Indian Express' for faster, cleaner TTS."""
+    clean = re.sub(r"\s*-\s*[^-]+$", "", title)
+    return clean.strip() or title
 
-    feed = feedparser.parse(news_url)
+def get_news(speak_func, count: int = 3):
+    """
+    Fetch and read top news headlines quickly.
+    Defaults to 3 headlines for speed and low listening fatigue.
+    """
+    speak_func("Fetching latest news...", block=False)
 
-    if not feed.entries:
-        speak("Sorry, unable to get the news")
-        return
+    try:
+        # Fetch RSS with a 5-second timeout to avoid long hangs
+        req = urllib.request.Request(
+            NEWS_URL,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            xml_data = response.read()
 
-    # Get all available headlines
-    articles = feed.entries
+        feed = feedparser.parse(xml_data)
+        articles = feed.entries
 
-    # Select 5 random headlines
-    random_news = random.sample(
-        articles,
-        min(5, len(articles))
-    )
+        if not articles:
+            speak_func("No news headlines found right now.", block=True)
+            return
 
-    print("\n===== RANDOM LATEST NEWS =====\n")
+        selected = articles[:count]
 
-    for index, article in enumerate(random_news, start=1):
-        title = article.title
+        print("\n" + "=" * 30)
+        print("      LATEST HEADLINES       ")
+        print("=" * 30)
 
-        print(f"{index}. {title}")
+        for index, article in enumerate(selected, start=1):
+            title = clean_headline(article.title)
+            print(f"{index}. {title}")
+            speak_func(f"Headline {index}: {title}", block=True)
 
-        speak(title)
+        speak_func("That is all for the latest news.", block=False)
 
-    speak("That is all for today's news")
+    except Exception as e:
+        print(f"[News Error]: {e}")
+        speak_func("Sorry, could not retrieve news headlines.", block=False)
+
+if __name__ == "__main__":
+    from tts import speak
+    get_news(speak)
