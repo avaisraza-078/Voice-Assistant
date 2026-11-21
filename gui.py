@@ -238,6 +238,18 @@ class VoiceGlobeGUI:
         transcript_frame = tk.Frame(self.canvas, bg="#081022", bd=1, relief=tk.SOLID, highlightbackground="#244070", highlightthickness=1)
         self.canvas.create_window(630, 490, window=transcript_frame, width=270, height=260)
 
+        # 6. Top Right Side Widget: Live Date & Time
+        datetime_frame = tk.Frame(self.canvas, bg="#081022", bd=1, relief=tk.SOLID, highlightbackground="#244070", highlightthickness=1, padx=12, pady=4)
+        self.canvas.create_window(630, 52, window=datetime_frame, width=270, height=56)
+
+        self.time_label = tk.Label(datetime_frame, text="--:--:--", font=("Segoe UI", 13, "bold"), fg="#f0f6fc", bg="#081022")
+        self.time_label.pack(anchor="e")
+
+        self.date_label = tk.Label(datetime_frame, text="Loading date...", font=("Segoe UI", 8), fg="#8daed8", bg="#081022")
+        self.date_label.pack(anchor="e")
+
+        self._update_clock()
+
         # Header of right-side panel
         header = tk.Frame(transcript_frame, bg="#0e1f3d", pady=4)
         header.pack(fill=tk.X)
@@ -265,6 +277,14 @@ class VoiceGlobeGUI:
         self.words_feed.configure(state=tk.NORMAL)
         self.words_feed.delete("1.0", tk.END)
         self.words_feed.configure(state=tk.DISABLED)
+
+    def _update_clock(self):
+        now = datetime.datetime.now()
+        time_str = now.strftime("%I:%M:%S %p")
+        date_str = now.strftime("%a, %b %d, %Y")
+        self.time_label.config(text=time_str)
+        self.date_label.config(text=date_str)
+        self.root.after(1000, self._update_clock)
 
     def _add_word_entry(self, text, is_command=False, response_msg=""):
         now_str = datetime.datetime.now().strftime("%I:%M:%S %p")

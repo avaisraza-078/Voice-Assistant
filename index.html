@@ -116,6 +116,41 @@
       box-shadow: 0 0 18px rgba(0, 245, 155, 0.25);
     }
 
+    /* TOP RIGHT SIDE: Live Date & Time Widget */
+    .datetime-panel {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: rgba(8, 16, 34, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(52, 120, 255, 0.35);
+      border-radius: 14px;
+      padding: 10px 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 106, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      z-index: 10;
+      pointer-events: none;
+      user-select: none;
+    }
+    .datetime-time {
+      font-size: 19px;
+      font-weight: 700;
+      color: #f0f6fc;
+      letter-spacing: 0.8px;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    }
+    .datetime-date {
+      font-size: 11px;
+      font-weight: 500;
+      color: #8daed8;
+      letter-spacing: 0.3px;
+    }
+
     /* RIGHT SIDE BOTTOM WIDGET: All Words Taken / Live Transcript */
     .transcript-panel {
       position: fixed;
@@ -259,6 +294,12 @@
     <p id="status" role="status">Click the globe or button to speak.</p>
   </main>
 
+  <!-- Top Right Side: Live Date & Time Widget -->
+  <aside class="datetime-panel" aria-label="Current date and time">
+    <div class="datetime-time" id="datetime-time">--:--:-- --</div>
+    <div class="datetime-date" id="datetime-date">Loading date...</div>
+  </aside>
+
   <!-- Right Side Bottom: All Words That Take Panel -->
   <aside class="transcript-panel" aria-label="Spoken words history">
     <div class="transcript-header">
@@ -288,6 +329,21 @@
     let ctx, stream, analyser, data, level = 0, active = false;
     let isProcessing = false;
     let recognition = null;
+
+    const timeElem = document.querySelector('#datetime-time');
+    const dateElem = document.querySelector('#datetime-date');
+
+    function updateClock() {
+      const now = new Date();
+      if (timeElem) {
+        timeElem.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      }
+      if (dateElem) {
+        dateElem.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
     button.onclick = toggleMicrophone;
     c.onclick = toggleMicrophone;
